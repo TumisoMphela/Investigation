@@ -1,0 +1,19 @@
+{
+    "name": "ask-6-llms-backend",
+    "version": "1.0.0",
+    "type": "module",
+    "main": "server.js",
+    "license": "MIT",
+    "scripts": {
+    "dev": "nodemon server.js",
+    "start": "NODE_ENV=production node server.js"
+    },
+    "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+    },
+    "engines": {
+    "node": ">=18"
+    }
+    }
