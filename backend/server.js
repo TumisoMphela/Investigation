@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+
 const app = express();
 
 app.use(cors());
@@ -15,12 +16,25 @@ const MODELS = [
   { id: 'cohere/command-r-plus', label: 'Cohere · Command-R+' },
 ];
 
+// --- New Health Check Endpoint ---
+app.get('/health', (_req, res) => {
+  res.json({
+    ok: true,
+    models: MODELS.map(m => m.label),
+    uptime: `${process.uptime().toFixed(0)}s`,
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// --- Existing Ask Endpoint ---
 app.post('/api/ask', async (req, res) => {
   const prompt = req.body?.prompt;
   if (!prompt) return res.status(400).json({ error: 'Missing prompt' });
   res.json({ ok: true, models: MODELS.map(m => m.label), prompt });
 });
 
+// --- Server Start ---
 app.listen(process.env.PORT || 8787, () =>
   console.log(`Server running on http://localhost:${process.env.PORT || 8787}`)
 );
