@@ -1,6 +1,7 @@
-// --- Config ---
-const API_BASE = 'http://localhost:8788'; // backend
+// app.js – Ask LLMs frontend logic
+const API_BASE = 'http://localhost:8787';
 
+// --- Models you’re querying ---
 const MODELS = [
   { id: 'openai/gpt-4o-mini', label: 'OpenAI · gpt-4o-mini' },
   { id: 'anthropic/claude-3.5-sonnet', label: 'Anthropic · Claude 3.5 Sonnet' },
@@ -20,76 +21,140 @@ const MODELS = [
   { id: 'moonshotai/kimi-k2-0905', label: 'MoonshotAI · Kimi K2 0905' },
 ];
 
-// --- DOM ---
 const promptEl = document.getElementById('prompt');
 const askBtn = document.getElementById('askBtn');
 const resultsEl = document.getElementById('results');
 const statusEl = document.getElementById('status');
+const jsonInput = document.getElementById('jsonInput');
+const jsonBtn = document.getElementById('jsonBtn');
 
-// --- Helpers ---
 const esc = (s) =>
   String(s).replace(
     /[&<>"']/g,
     (m) =>
-      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[
-        m
-      ])
+      ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      }[m])
   );
 const cssId = (s) => s.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
-const tf = (v, n = 1) => (typeof v === 'number' ? v.toFixed(n) : '—');
 
+/* --- UI Helpers --- */
 function cardSkeleton(label) {
   const id = cssId(label);
   return `
-  <div id="card-${id}" class="bg-white dark:bg-gray-800 border rounded-2xl shadow-sm p-4">
-    <div class="flex items-center justify-between mb-2">
-      <h2 class="font-semibold text-sm">${esc(label)}</h2>
-      <span class="text-xs text-gray-500" id="chip-${id}">waiting…</span>
-    </div>
-    <article class="prose prose-sm max-w-none" id="content-${id}">
-      <p class="text-gray-500">Queued</p>
-    </article>
-  </div>`;
+    <div id="card-${id}" class="bg-white border rounded-2xl shadow-sm p-4">
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="font-semibold text-sm">${esc(label)}</h2>
+        <span id="chip-${id}" class="text-xs text-gray-500">waiting…</span>
+      </div>
+      <article id="content-${id}" class="prose prose-sm text-gray-700"><p>Queued…</p></article>
+    </div>`;
 }
-
 function renderSkeleton() {
   resultsEl.innerHTML = MODELS.map((m) => cardSkeleton(m.label)).join('');
 }
-
 function buildAnalysisFooter(a = {}) {
   const scores = a.scores
     ? Object.entries(a.scores)
-        .map(([k, v]) => `<li>${esc(k)}: ${tf(v, 2)}</li>`)
+        .map(
+          ([k, v]) => `<li>${esc(k)}: ${v?.toFixed ? v.toFixed(2) : '—'}</li>`
+        )
         .join('')
     : '<li>n/a</li>';
-
-  return `
-    <div class="mt-3 text-xs text-gray-700 dark:text-gray-300 border-t pt-2">
-      <b>Analysis:</b>
-      <ul class="list-disc pl-5">${scores}</ul>
+  return `<div class="mt-3 text-xs text-gray-700 border-t pt-2">
+      <b>Analysis:</b><ul class="list-disc pl-5">${scores}</ul>
       <p class="mt-1"><b>Reasoning:</b> ${esc(a.reasoning || 'n/a')}</p>
     </div>`;
 }
-
 function setCard(label, text, analysis, meta) {
   const id = cssId(label);
   const content = document.getElementById('content-' + id);
   const chip = document.getElementById('chip-' + id);
-  if (content) {
-    const answerHTML = `<p>${esc(text || '')}</p>`;
-    const footerHTML = buildAnalysisFooter(analysis);
-    content.innerHTML = answerHTML + footerHTML;
-  }
+  if (content)
+    content.innerHTML = `<p>${esc(text || '')}</p>${buildAnalysisFooter(
+      analysis
+    )}`;
   if (chip) chip.textContent = meta || 'done';
 }
 
-// --- Ask single prompt ---
+/* --- Chart Renderer --- */
+function renderChart(dataObj) {
+  if (!dataObj || !Object.keys(dataObj).length) {
+    alert('No valid analysis data found to visualize.');
+    return;
+  }
+
+  const llms = Object.keys(dataObj);
+  const categories = Object.keys(Object.values(dataObj)[0]);
+  const colors = [
+    '#f94144',
+    '#f3722c',
+    '#f8961e',
+    '#f9844a',
+    '#f9c74f',
+    '#90be6d',
+    '#43aa8b',
+    '#577590',
+    '#277da1',
+    '#4d908e',
+  ];
+
+  const datasets = categories.map((cat, i) => ({
+    label: cat,
+    data: llms.map((llm) => dataObj[llm][cat]),
+    backgroundColor: colors[i % colors.length],
+    borderRadius: 5,
+  }));
+
+  const canvas = document.getElementById('analysisChart');
+  if (!canvas) return;
+
+  // Destroy previous chart safely
+  if (
+    window.analysisChart &&
+    typeof window.analysisChart.destroy === 'function'
+  ) {
+    window.analysisChart.destroy();
+  }
+
+  const ctx = canvas.getContext('2d');
+  window.analysisChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: llms, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        title: {
+          display: true,
+          text: 'Average Ethical Framework Scores Across LLMs',
+          font: { size: 18 },
+        },
+        legend: { display: true, position: 'right' },
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 1,
+          title: { display: true, text: 'Score (0–1)' },
+        },
+        x: { title: { display: true, text: 'LLMs' } },
+      },
+    },
+  });
+}
+
+/* --- Ask a single question --- */
 async function askAll() {
-  const prompt = (promptEl?.value || '').trim();
-  if (!prompt) return;
+  const prompt = promptEl.value.trim();
+  if (!prompt) return alert('Please type a question first!');
 
   renderSkeleton();
-  statusEl.textContent = 'Querying 6 LLMs…';
+  statusEl.textContent = 'Querying models...';
   const started = performance.now();
 
   try {
@@ -99,10 +164,23 @@ async function askAll() {
       body: JSON.stringify({ prompt }),
     });
     const data = await res.json();
+    if (!data.results) throw new Error('Invalid backend response.');
 
-    data.results.forEach((row) =>
-      setCard(row.label, row.text, row.analysis, `tokens ${row.tokens || '—'}`)
+    data.results.forEach((r) =>
+      setCard(
+        r.label,
+        r.text || 'No response',
+        r.analysis,
+        `tokens ${r.tokens || '—'}`
+      )
     );
+
+    const chartData = {};
+    data.results.forEach((r) => {
+      if (r.analysis?.scores) chartData[r.label] = r.analysis.scores;
+    });
+
+    renderChart(chartData);
     statusEl.textContent = `Done in ${Math.round(
       performance.now() - started
     )} ms`;
@@ -117,48 +195,67 @@ promptEl.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) askAll();
 });
 
-// --- JSON Upload Logic ---
-const jsonInput = document.getElementById('jsonInput');
-const jsonBtn = document.getElementById('jsonBtn');
+/* --- Upload & auto-visualize JSON --- */
+jsonBtn.addEventListener('click', async () => {
+  const file = jsonInput.files?.[0];
+  if (!file) return alert('Select a JSON file first!');
 
-if (jsonBtn && jsonInput) {
-  jsonBtn.addEventListener('click', async () => {
-    const file = jsonInput.files?.[0];
-    if (!file) return alert('Select a JSON file first!');
+  const text = await file.text();
+  let payload = JSON.parse(text);
+  if (!Array.isArray(payload)) payload = { questions: payload.questions };
 
-    try {
-      const text = await file.text();
-      let payload = JSON.parse(text);
-
-      if (!Array.isArray(payload) && !payload.questions) {
-        alert(
-          'Invalid JSON format. Expected an array or { "questions": [...] }'
-        );
-        return;
-      }
-
-      statusEl.textContent = 'Uploading batch…';
-      const res = await fetch(`${API_BASE}/api/ask-json`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-      const blob = new Blob([JSON.stringify(data, null, 2)], {
-        type: 'application/json',
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'llm_results.json';
-      a.click();
-      URL.revokeObjectURL(url);
-
-      statusEl.textContent = '✅ Batch complete — results downloaded.';
-    } catch (err) {
-      console.error(err);
-      statusEl.textContent = '❌ Error processing JSON: ' + err.message;
-    }
+  statusEl.textContent = 'Uploading batch…';
+  const res = await fetch(`${API_BASE}/api/ask-json`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
   });
-}
+
+  const data = await res.json();
+  const blob = new Blob([JSON.stringify(data, null, 2)], {
+    type: 'application/json',
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'llm_results.json';
+  a.click();
+  URL.revokeObjectURL(url);
+
+  statusEl.textContent = 'Batch complete — generating chart...';
+
+  // 🔹 Automatically generate averaged chart
+  const resultsArray = data.results || [];
+  const totals = {},
+    counts = {};
+
+  resultsArray.forEach((entry) => {
+    const answers = entry.answers || [];
+    answers.forEach((ans) => {
+      const label = ans.label || ans.model;
+      const scores = ans.analysis?.scores;
+      if (!scores) return;
+      if (!totals[label]) {
+        totals[label] = {};
+        counts[label] = {};
+      }
+      for (const [k, v] of Object.entries(scores)) {
+        if (typeof v !== 'number') continue;
+        totals[label][k] = (totals[label][k] || 0) + v;
+        counts[label][k] = (counts[label][k] || 0) + 1;
+      }
+    });
+  });
+
+  const averages = {};
+  for (const [label, catVals] of Object.entries(totals)) {
+    averages[label] = {};
+    for (const [cat, sum] of Object.entries(catVals)) {
+      const avg = sum / (counts[label][cat] || 1);
+      averages[label][cat] = parseFloat(avg.toFixed(2));
+    }
+  }
+
+  renderChart(averages);
+  statusEl.textContent = 'Chart generated successfully.';
+});

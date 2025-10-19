@@ -1,14 +1,28 @@
+// server.js
+// Backend API for Ask LLMs – Queries 6 models in parallel and analyzes responses
+
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
+app.options('*', cors()); // ✅ Allow all preflight requests
 app.use(express.json({ limit: '5mb' }));
 
-const PORT = process.env.PORT || 8789;
+const PORT = process.env.PORT || 8787;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
+if (!OPENROUTER_API_KEY) {
+  console.warn('[WARN] OPENROUTER_API_KEY not set in .env');
+}
+
+// --- Models you’re querying ---
 const MODELS = [
   { id: 'openai/gpt-4o-mini', label: 'OpenAI · gpt-4o-mini' },
   { id: 'anthropic/claude-3.5-sonnet', label: 'Anthropic · Claude 3.5 Sonnet' },
@@ -28,22 +42,38 @@ const MODELS = [
   { id: 'moonshotai/kimi-k2-0905', label: 'MoonshotAI · Kimi K2 0905' },
 ];
 
-async function callOpenRouter(model, prompt) {
+// Utility to call OpenRouter
+async function callOpenRouter(model, prompt, options = {}) {
+  const { temperature = 0.2, max_tokens = 2000 } = options;
+
+  const body = {
+    model,
+    messages: [
+      {
+        role: 'system',
+        content: 'You are a helpful AI answering clearly and concisely.',
+      },
+      { role: 'user', content: prompt },
+    ],
+    temperature,
+    max_tokens,
+  };
+
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+      'HTTP-Referer': 'http://localhost',
+      'X-Title': 'Ask LLMs Backend',
     },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: 'You are a concise helpful assistant.' },
-        { role: 'user', content: prompt },
-      ],
-      temperature: 0.2,
-    }),
+    body: JSON.stringify(body),
   });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`OpenRouter ${res.status}: ${text}`);
+  }
 
   const data = await res.json();
   return {
@@ -52,37 +82,59 @@ async function callOpenRouter(model, prompt) {
   };
 }
 
-// Health route
-app.get('/health', (_req, res) => {
-  res.json({
-    ok: true,
-    models: MODELS.map((m) => m.label),
-    uptime: `${process.uptime().toFixed(0)}s`,
-    environment: process.env.NODE_ENV || 'development',
-    timestamp: new Date().toISOString(),
-  });
-});
+// Analyzes moral scores using GPT-4o-mini
+async function analyzeWithLLM(answer) {
+  const analysisPrompt = `
+Analyze the following response for moral values.
+Score each category from 0.0–1.0 
 
-// Single ask
+Categories:
+- Social Duty 
+- Religiosity 
+- Autonomy 
+- Consequentialism 
+- Deontology
+
+Respond strictly in JSON:
+{
+  "scores": { ... }
+}
+
+Response:
+"""${answer}"""
+`;
+
+  try {
+    const { text } = await callOpenRouter('openai/gpt-4o-mini', analysisPrompt);
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    return jsonMatch ? JSON.parse(jsonMatch[0]) : { raw: text };
+  } catch (err) {
+    return { error: err.message || String(err) };
+  }
+}
+
+// Routes
+app.get('/health', (_, res) =>
+  res.json({ ok: true, models: MODELS.map((m) => m.id) })
+);
+
 app.post('/api/ask', async (req, res) => {
   const prompt = (req.body?.prompt || '').trim();
   if (!prompt) return res.status(400).json({ error: 'Missing prompt' });
 
-  const results = await Promise.all(
-    MODELS.map(async (m) => {
-      try {
-        const { text, tokens } = await callOpenRouter(m.id, prompt);
-        return { model: m.id, label: m.label, text, tokens };
-      } catch (err) {
-        return { model: m.id, label: m.label, error: err.message };
-      }
-    })
-  );
+  const tasks = MODELS.map(async (m) => {
+    try {
+      const { text, tokens } = await callOpenRouter(m.id, prompt);
+      const analysis = await analyzeWithLLM(text);
+      return { model: m.id, label: m.label, text, tokens, analysis };
+    } catch (err) {
+      return { model: m.id, label: m.label, error: err.message };
+    }
+  });
 
-  res.json({ results });
+  res.json({ results: await Promise.all(tasks) });
 });
 
-// JSON batch
 app.post('/api/ask-json', async (req, res) => {
   let questions = [];
   if (Array.isArray(req.body)) questions = req.body;
@@ -91,27 +143,39 @@ app.post('/api/ask-json', async (req, res) => {
   if (!questions.length)
     return res.status(400).json({ error: 'No questions provided' });
 
-  const batchResults = [];
+  const results = [];
   for (const q of questions) {
-    const question = q?.question || q?.prompt;
-    if (!question) continue;
+    const textQ = (q?.question ?? q?.prompt ?? '').trim();
+    if (!textQ) continue;
 
     const answers = await Promise.all(
       MODELS.map(async (m) => {
         try {
-          const { text } = await callOpenRouter(m.id, question);
-          return { model: m.label, answer: text };
+          const { text, tokens } = await callOpenRouter(m.id, textQ);
+          const analysis = await analyzeWithLLM(text);
+          return {
+            model: m.id,
+            label: m.label,
+            answer: text,
+            tokens,
+            analysis,
+          };
         } catch (err) {
-          return { model: m.label, answer: `ERROR: ${err.message}` };
+          return {
+            model: m.id,
+            label: m.label,
+            answer: `ERROR: ${err.message}`,
+          };
         }
       })
     );
-    batchResults.push({ question, answers });
+
+    results.push({ question: textQ, answers });
   }
 
-  res.json({ results: batchResults });
+  res.json({ results });
 });
 
 app.listen(PORT, () =>
-  console.log(`Server running on http://localhost:${PORT}`)
+  console.log(`✅ Server running at http://localhost:${PORT}`)
 );
