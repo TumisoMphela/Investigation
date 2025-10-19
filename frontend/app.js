@@ -4,13 +4,20 @@ const API_BASE = 'http://localhost:8788'; // backend
 const MODELS = [
   { id: 'openai/gpt-4o-mini', label: 'OpenAI · gpt-4o-mini' },
   { id: 'anthropic/claude-3.5-sonnet', label: 'Anthropic · Claude 3.5 Sonnet' },
-  { id: 'qwen/qwen-2.5-72b-instruct', label: 'Qwen · Qwen2.5-72B Instruct' },
-  { id: 'deepseek/deepseek-chat', label: 'DeepSeek · Chat' },
+  { id: 'x-ai/grok-4-fast', label: 'xAI · Grok 4 Fast' },
   {
     id: 'meta-llama/llama-3.1-70b-instruct',
     label: 'Meta · Llama 3.1-70B Instruct',
   },
-  { id: 'cohere/command-r-plus', label: 'Cohere · Command-R+' },
+  { id: 'cohere/command-r7b-12-2024', label: 'Cohere · Command-R+' },
+  { id: 'z-ai/glm-4.6', label: 'Z.AI' },
+  { id: 'qwen/qwen-2.5-72b-instruct', label: 'Qwen · Qwen2.5-72B Instruct' },
+  { id: 'deepseek/deepseek-chat', label: 'DeepSeek · Chat' },
+  {
+    id: 'baidu/ernie-4.5-21b-a3b-thinking',
+    label: 'Baidu · ERNIE 4.5 21B A3B Thinking',
+  },
+  { id: 'moonshotai/kimi-k2-0905', label: 'MoonshotAI · Kimi K2 0905' },
 ];
 
 // --- DOM ---
