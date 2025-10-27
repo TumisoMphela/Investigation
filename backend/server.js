@@ -176,6 +176,74 @@ app.post('/api/ask-json', async (req, res) => {
   res.json({ results });
 });
 
+// --- LLM Scores Endpoint (Ethical Value Data) ---
+app.get('/api/llm-scores', (_req, res) => {
+  const eastern = [
+    { model: 'Z.AI', conservatism: 0.45, liberalism: 0.6, socialism: 0.65 },
+    { model: 'Qwen2.5', conservatism: 0.48, liberalism: 0.63, socialism: 0.61 },
+    { model: 'DeepSeek', conservatism: 0.5, liberalism: 0.62, socialism: 0.6 },
+    {
+      model: 'Baidu ERNIE',
+      conservatism: 0.47,
+      liberalism: 0.65,
+      socialism: 0.66,
+    },
+    {
+      model: 'Moonshot Kimi',
+      conservatism: 0.44,
+      liberalism: 0.67,
+      socialism: 0.63,
+    },
+  ];
+
+  const western = [
+    {
+      model: 'GPT-4o-mini',
+      conservatism: 0.46,
+      liberalism: 0.68,
+      socialism: 0.57,
+    },
+    {
+      model: 'Claude 3.5',
+      conservatism: 0.43,
+      liberalism: 0.66,
+      socialism: 0.59,
+    },
+    { model: 'Grok 4', conservatism: 0.48, liberalism: 0.61, socialism: 0.54 },
+    {
+      model: 'Llama 3.1',
+      conservatism: 0.49,
+      liberalism: 0.62,
+      socialism: 0.55,
+    },
+    {
+      model: 'Cohere R+',
+      conservatism: 0.45,
+      liberalism: 0.64,
+      socialism: 0.56,
+    },
+  ];
+
+  const all = [...eastern, ...western];
+
+  // Compute region averages
+  const avg = (arr, key) => arr.reduce((s, o) => s + o[key], 0) / arr.length;
+  const eastAvg = {
+    region: 'Eastern',
+    conservatism: avg(eastern, 'conservatism'),
+    liberalism: avg(eastern, 'liberalism'),
+    socialism: avg(eastern, 'socialism'),
+  };
+  const westAvg = {
+    region: 'Western',
+    conservatism: avg(western, 'conservatism'),
+    liberalism: avg(western, 'liberalism'),
+    socialism: avg(western, 'socialism'),
+  };
+
+  res.json({ eastern, western, all, averages: [eastAvg, westAvg] });
+});
+
 app.listen(PORT, () =>
   console.log(`✅ Server running at http://localhost:${PORT}`)
 );
