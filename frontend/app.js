@@ -259,3 +259,98 @@ jsonBtn.addEventListener('click', async () => {
   renderChart(averages);
   statusEl.textContent = 'Chart generated successfully.';
 });
+
+// --- Fetch and Visualize LLM Scores ---
+async function loadLLMCharts() {
+  try {
+    const res = await fetch(`${API_BASE}/api/llm-scores`);
+    const data = await res.json();
+
+    // 🟩 1. BAR CHART for all models
+    const labels = data.all.map((m) => m.model);
+    const barData = {
+      labels,
+      datasets: [
+        {
+          label: 'Conservatism',
+          data: data.all.map((m) => m.conservatism),
+          backgroundColor: 'rgba(239, 68, 68, 0.7)',
+        },
+        {
+          label: 'Liberalism',
+          data: data.all.map((m) => m.liberalism),
+          backgroundColor: 'rgba(34, 197, 94, 0.7)',
+        },
+        {
+          label: 'Socialism',
+          data: data.all.map((m) => m.socialism),
+          backgroundColor: 'rgba(59, 130, 246, 0.7)',
+        },
+      ],
+    };
+    new Chart(document.getElementById('barChart'), {
+      type: 'bar',
+      data: barData,
+      options: {
+        responsive: true,
+        scales: { y: { beginAtZero: true, max: 1 } },
+      },
+    });
+
+    // 🟦 2. RADAR per model
+    const modelContainer = document.getElementById('modelRadarContainer');
+    data.all.forEach((m) => {
+      const canvas = document.createElement('canvas');
+      canvas.classList.add('bg-white', 'p-3', 'rounded-xl', 'shadow');
+      modelContainer.appendChild(canvas);
+
+      new Chart(canvas, {
+        type: 'radar',
+        data: {
+          labels: ['Conservatism', 'Liberalism', 'Socialism'],
+          datasets: [
+            {
+              label: m.model,
+              data: [m.conservatism, m.liberalism, m.socialism],
+              backgroundColor: 'rgba(37, 99, 235, 0.3)',
+              borderColor: 'rgba(37, 99, 235, 0.8)',
+              borderWidth: 2,
+            },
+          ],
+        },
+        options: { scales: { r: { min: 0, max: 1 } } },
+      });
+    });
+
+    // 🟨 3. RADAR Eastern vs Western
+    const regionRadar = document.getElementById('regionRadar');
+    new Chart(regionRadar, {
+      type: 'radar',
+      data: {
+        labels: ['Conservatism', 'Liberalism', 'Socialism'],
+        datasets: [
+          {
+            label: 'Eastern LLMs',
+            data: Object.values(data.averages[0]).slice(1),
+            backgroundColor: 'rgba(250, 204, 21, 0.3)',
+            borderColor: 'rgba(250, 204, 21, 0.8)',
+            borderWidth: 2,
+          },
+          {
+            label: 'Western LLMs',
+            data: Object.values(data.averages[1]).slice(1),
+            backgroundColor: 'rgba(34, 197, 94, 0.3)',
+            borderColor: 'rgba(34, 197, 94, 0.8)',
+            borderWidth: 2,
+          },
+        ],
+      },
+      options: { scales: { r: { min: 0, max: 1 } } },
+    });
+  } catch (err) {
+    console.error('Error loading charts:', err);
+  }
+}
+
+// Render charts after load
+window.addEventListener('DOMContentLoaded', loadLLMCharts);
