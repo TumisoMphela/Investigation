@@ -77,6 +77,31 @@
       </section>
     </main>
 
+    <!-- 📊 LLM Comparison Dashboard -->
+    <section class="mt-10 space-y-10">
+      <div>
+        <h2 class="text-lg font-semibold mb-2">Bar Graph: All LLMs</h2>
+        <canvas id="barChart"></canvas>
+      </div>
+
+      <div>
+        <h2 class="text-lg font-semibold mb-2">Radar Charts: Each Model</h2>
+        <div
+          id="modelRadarContainer"
+          class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"
+        ></div>
+      </div>
+
+      <div>
+        <h2 class="text-lg font-semibold mb-2">
+          Radar Graph: Eastern vs Western Averages
+        </h2>
+        <canvas id="regionRadar"></canvas>
+      </div>
+    </section>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <script src="./app.js" defer></script>
 
     <style>
