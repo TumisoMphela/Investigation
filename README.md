@@ -40,13 +40,8 @@ npx http-server frontend -p 5501 -c-1
 Access the web application at: http://127.0.0.1:5501
 
 ### Project Structure
-Investigation/
-├── backend/
-│   ├── server.js
-│   ├── package.json
-│   └── .env
-├── frontend/
-│   ├── index.html
-│   └── app.js
-└── README.md
+frontend: Contains everything related to the front-end, including React components and Tailwind CSS styles.
+backend: Contains everything related to the back-end, including the API connections.
+Prompts: Contains the prompts that were used during the Investigation
+
 
