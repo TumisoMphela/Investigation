@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Ask LLMs</title>
+    <title>LLMs</title>
 
     <!-- Tailwind & Chart.js -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -29,7 +29,7 @@
             <textarea
               id="prompt"
               rows="4"
-              placeholder="Type your question here..."
+              placeholder="Type your ethical question here..."
               class="w-full rounded-xl border px-4 py-3 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             ></textarea>
             <div class="flex justify-end mt-3">
@@ -54,7 +54,7 @@
               id="jsonBtn"
               class="px-5 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700"
             >
-              Upload & Run JSON
+              Run JSON
             </button>
           </section>
 
@@ -76,31 +76,6 @@
         </div>
       </section>
     </main>
-
-    <!-- 📊 LLM Comparison Dashboard -->
-    <section class="mt-10 space-y-10">
-      <div>
-        <h2 class="text-lg font-semibold mb-2">Bar Graph: All LLMs</h2>
-        <canvas id="barChart"></canvas>
-      </div>
-
-      <div>
-        <h2 class="text-lg font-semibold mb-2">Radar Charts: Each Model</h2>
-        <div
-          id="modelRadarContainer"
-          class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"
-        ></div>
-      </div>
-
-      <div>
-        <h2 class="text-lg font-semibold mb-2">
-          Radar Graph: Eastern vs Western Averages
-        </h2>
-        <canvas id="regionRadar"></canvas>
-      </div>
-    </section>
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script src="./app.js" defer></script>
 
