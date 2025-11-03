@@ -1,5 +1,5 @@
 // app.js – Ask LLMs frontend logic
-const API_BASE = 'http://localhost:8787';
+const API_BASE = 'http://localhost:8789';
 
 // --- Models you’re querying ---
 const MODELS = [

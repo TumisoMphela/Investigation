@@ -15,7 +15,7 @@ app.use(cors());
 app.options('*', cors()); // Allow all preflight requests
 app.use(express.json({ limit: '5mb' }));
 
-const PORT = process.env.PORT || 8787;
+const PORT = process.env.PORT || 8789;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
 if (!OPENROUTER_API_KEY) {
